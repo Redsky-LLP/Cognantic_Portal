@@ -8,20 +8,12 @@
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ConnectionStrings__DefaultConnection
-        fromDatabase:
-          name: cognantic-db
-          property: connectionString
-      - key: Jwt__Issuer
-        sync: false
-      - key: Jwt__Audience
-        sync: false
+        value: Host=db.ytrarnwueskxkhknnthj.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=Asdfg@12345!&;SSL Mode=Require;Trust Server Certificate=true;Pooling=true;
       - key: Jwt__Key
-        sync: false
+        value: CognanticSuperSecretKey2026_MustBe32CharsOrMore!
+      - key: Jwt__Issuer
+        value: CognanticAPI
+      - key: Jwt__Audience
+        value: CognanticClients
       - key: AllowedOrigin
-        sync: false
-
-databases:
-  - name: cognantic-db
-    databaseName: cognantic_db
-    plan: free
-    ipAllowList: []  # Allow all connections (or specify Render's IPs)
+        value: https://your-frontend-url.onrender.com

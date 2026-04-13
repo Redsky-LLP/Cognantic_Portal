@@ -12,6 +12,13 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add logging
+builder.Services.AddLogging(logging =>
+{
+    logging.AddConsole();
+    logging.AddDebug();
+});
+
 // 1. JWT Authentication Setup
 builder.Services.AddAuthentication(options =>
 {
@@ -31,6 +38,21 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "CognanticSuperSecretKey2026_MustBe32CharsOrMore!"))
     };
+
+    // For SignalR
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // 2. CORS Policy
@@ -38,7 +60,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                builder.Configuration["AllowedOrigin"] ?? "https://your-app.netlify.app"
+              )
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -52,7 +77,12 @@ builder.Services.AddDbContextFactory<CognanticDbContext>(options =>
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {
         npgsqlOptions.CommandTimeout(120);
+        npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
     }));
+
+// Add scoped DbContext for controllers
+builder.Services.AddScoped<CognanticDbContext>(sp =>
+    sp.GetRequiredService<IDbContextFactory<CognanticDbContext>>().CreateDbContext());
 
 builder.Services.AddHostedService<MeetLinkDispatcher>();
 builder.Services.AddHttpClient<ZoomService>();
@@ -75,7 +105,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
-// 6. Swagger/OpenAPI for .NET 8
+// 6. Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -117,7 +147,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Cognantic API v1");
-        c.RoutePrefix = "";  // This makes Swagger load directly at root URL
+        c.RoutePrefix = "swagger";
     });
 }
 
@@ -128,5 +158,29 @@ app.UseAuthorization();
 
 app.MapHub<SessionHub>("/hubs/session");
 app.MapControllers();
+
+// ✅ Apply migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var db = services.GetRequiredService<CognanticDbContext>();
+
+        logger.LogInformation("Starting database migration...");
+
+        // Apply migrations synchronously
+        db.Database.Migrate();
+
+        logger.LogInformation("Database migration completed successfully!");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database migration failed. The application will continue but may not function correctly.");
+        // Don't throw - let the app start and retry on requests
+    }
+}
 
 app.Run();
