@@ -11,7 +11,17 @@
         fromDatabase:
           name: cognantic-db
           property: connectionString
-    databases:
-      - name: cognantic-db
-        databaseName: cognantic_db
-        plan: free
+      - key: Jwt__Issuer
+        sync: false
+      - key: Jwt__Audience
+        sync: false
+      - key: Jwt__Key
+        sync: false
+      - key: AllowedOrigin
+        sync: false
+
+databases:
+  - name: cognantic-db
+    databaseName: cognantic_db
+    plan: free
+    ipAllowList: []  # Allow all connections (or specify Render's IPs)

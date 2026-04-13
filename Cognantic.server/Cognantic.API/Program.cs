@@ -12,13 +12,6 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add logging
-builder.Services.AddLogging(logging =>
-{
-    logging.AddConsole();
-    logging.AddDebug();
-});
-
 // 1. JWT Authentication Setup
 builder.Services.AddAuthentication(options =>
 {
@@ -45,10 +38,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                builder.Configuration["AllowedOrigin"] ?? "https://your-app.netlify.app"
-              )
+        policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -58,20 +48,10 @@ builder.Services.AddCors(options =>
 // 3. Database Context & Factory
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Log the connection string (without sensitive data in production)
-if (builder.Environment.IsDevelopment())
-{
-    Console.WriteLine($"Using connection string: {connectionString}");
-}
-
 builder.Services.AddDbContextFactory<CognanticDbContext>(options =>
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {
         npgsqlOptions.CommandTimeout(120);
-        npgsqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorCodesToAdd: null);
     }));
 
 builder.Services.AddHostedService<MeetLinkDispatcher>();
@@ -148,60 +128,5 @@ app.UseAuthorization();
 
 app.MapHub<SessionHub>("/hubs/session");
 app.MapControllers();
-
-// Apply migrations with retry logic and better error handling
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var logger = services.GetRequiredService<ILogger<Program>>();
-
-    try
-    {
-        var db = services.GetRequiredService<CognanticDbContext>();
-
-        logger.LogInformation("Starting database migration...");
-
-        // Retry logic for database connection
-        int maxRetries = 5;
-        int retryDelaySeconds = 5;
-
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
-        {
-            try
-            {
-                logger.LogInformation($"Attempt {attempt} of {maxRetries} to connect to database...");
-
-                // Test connection first
-                var canConnect = await db.Database.CanConnectAsync();
-                if (!canConnect)
-                {
-                    logger.LogWarning("Cannot connect to database yet. Retrying...");
-                    throw new Exception("Database connection failed");
-                }
-
-                // Apply migrations
-                await db.Database.MigrateAsync();
-                logger.LogInformation("Database migration completed successfully!");
-                break;
-            }
-            catch (Exception ex) when (attempt < maxRetries)
-            {
-                logger.LogWarning(ex, $"Database migration attempt {attempt} failed. Retrying in {retryDelaySeconds} seconds...");
-                await Task.Delay(retryDelaySeconds * 1000);
-                retryDelaySeconds *= 2; // Exponential backoff
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Database migration failed after all retries. The application will continue but may not function correctly.");
-                // Don't rethrow - let the app start anyway
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "An error occurred while setting up the database. The application will continue but database features may not work.");
-        // Don't throw - let the app start and retry on requests
-    }
-}
 
 app.Run();
