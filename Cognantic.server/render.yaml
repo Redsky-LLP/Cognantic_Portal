@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: cognantic-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        sync: false
+      - key: Jwt__Audience
+        sync: false
+      - key: Email__SmtpHost
+        sync: false
+      - key: Email__SmtpPort
+        sync: false
+      - key: Email__Username
+        sync: false
+      - key: Email__Password
+        sync: false
+      - key: Email__FromAddress
+        sync: false
+      - key: Zoom__AccountId
+        sync: false
+      - key: Zoom__ClientId
+        sync: false
+      - key: Zoom__ClientSecret
+        sync: false
+      - key: AllowedOrigin
+        sync: false

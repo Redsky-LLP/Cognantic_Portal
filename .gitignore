@@ -1,0 +1,64 @@
+﻿# Visual Studio folders
+.vs/
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+*.user
+*.suo
+*.sln.dotSettings.user
+
+# Build outputs
+**/publish/
+**/PubTmp/
+*.dll
+*.exe
+*.pdb
+
+# Node / Client folders
+node_modules/
+dist/
+**/node_modules/
+**/dist/
+
+# Environment files
+.env
+.env.*
+*.txt
+
+# Docker
+*.dockerignore
+
+# Common OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Logs
+**/logs/
+*.log
+
+# Backup files
+*.bak
+*.tmp
+*.temp
+
+# Deploy artifacts
+*.zip
+*.deploy.zip
+deploy.zip
+publish.zip
+
+# Database files
+*.db
+*.sqlite
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Specific files
+register.json
+repomix-server.md

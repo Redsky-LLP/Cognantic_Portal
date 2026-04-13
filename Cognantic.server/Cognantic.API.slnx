@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Cognantic.API/Cognantic.API.csproj" Id="7db1fa41-7c78-40e2-b4c7-1ff6d063593c" />
+  <Project Path="Cognantic.Application/Cognantic.Application.csproj" />
+  <Project Path="Cognantic.Domain/Cognantic.Domain.csproj" />
+  <Project Path="Cognantic.Infrastructure/Cognantic.Infrastructure.csproj" />
+</Solution>
