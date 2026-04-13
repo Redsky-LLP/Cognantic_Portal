@@ -32,8 +32,8 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: src/**/*
-- Files matching these patterns are excluded: node_modules, dist, build, .git, package-lock.json
+- Only files matching these patterns are included: src/**/*, package.json, tsconfig.json
+- Files matching these patterns are excluded: node_modules, dist, build, .git
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -42,6 +42,7 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
+package.json
 src/api/apiClient.ts
 src/App.tsx
 src/components/AuthModal.tsx
@@ -83,10 +84,40 @@ src/services/walletService.ts
 src/styles/global.css
 src/types/index.ts
 src/vite-env.d.ts
+tsconfig.json
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="package.json">
+{
+  "name": "cognantic",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@microsoft/signalr": "^10.0.0",
+    "axios": "^1.13.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.13.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.3.0",
+    "vite": "^5.2.0"
+  }
+}
+</file>
 
 <file path="src/api/apiClient.ts">
 // src/services/apiClient.ts
@@ -3782,51 +3813,56 @@ const FinderFlow: React.FC<FinderFlowProps> = ({ onBack }) => {
   // FIX: replaced alert() with InFlowTopUpModal.
   // FIX: isLoading guard prevents double-click double-debit.
   const handlePaymentConfirm = async (payMethod: PayMethod) => {
-    if (isLoading) return  // ✅ double-click guard
+  if (isLoading) return
 
-    if (payMethod === 'Wallet') {
-      const sessionPrice   = selectedClinician!.hourlyRate           // ✅ FIXED
-      const currentBalance = walletBalance?.balance ?? 0
+  if (payMethod === 'Wallet') {
+    const sessionPrice = selectedClinician!.hourlyRate
+    const currentBalance = walletBalance?.available ?? 0
 
-      if (currentBalance < sessionPrice) {
-        // ✅ FIX: show in-flow modal instead of alert()
-        // Booking state is preserved — modal calls executeBooking on success
-        setPendingPayMethod(payMethod)
-        setTopUpShortfall(sessionPrice - currentBalance)
-        setShowTopUpModal(true)
-        return
-      }
+    if (currentBalance < sessionPrice) {
+      // Open top-up modal - don't book yet
+      setPendingPayMethod(payMethod)
+      setTopUpShortfall(sessionPrice - currentBalance)
+      setShowTopUpModal(true)
+      return  // Don't proceed to booking
     }
-
-    await executeBooking(payMethod)
   }
 
+  // Only book if balance is sufficient
+  await executeBooking(payMethod)
+}
   // Called by InFlowTopUpModal after successful top-up
-  const handleTopUpSuccess = async () => {
-  // 1. Close the modal immediately so the user sees the main flow again
-  setShowTopUpModal(false);
+  // ── Step 5: Confirm & Pay handler ─────────────────────────────
+
+// Called by InFlowTopUpModal after successful top-up
+ // Called by WalletTopUpModal after successful top-up
+const handleTopUpSuccess = async () => {
+  console.log("=== handleTopUpSuccess START ===");
   
-  // 2. Keep the main loader active so the user doesn't double-click anything
-  setIsLoading(true); 
+  setShowTopUpModal(false);
+  setIsLoading(true);
 
   try {
-    // 3. Refresh the wallet balance from the server
+    console.log("Refreshing wallet balance for patientId:", patientId);
+    
+    // Refresh wallet balance from server
     const fresh = await walletService.getBalance(patientId);
+    console.log("Balance from API:", fresh);
+    
     setWalletBalance(fresh);
-
-    // 4. Proceed to the actual booking
-    // We use the 'pendingPayMethod' we saved before opening the modal
-    await executeBooking(pendingPayMethod ?? 'Wallet');
+    
+    // Show success message with updated balance
+    alert(`✅ Wallet topped up! New balance: ₹${fresh.available}`);
+    
   } catch (error) {
-    console.error("Post-topup synchronization failed:", error);
-    // Even if balance refresh fails, we try to book if the money was sent
-    await executeBooking(pendingPayMethod ?? 'Wallet');
+    console.error("Balance refresh failed:", error);
+    alert("Top-up completed but balance refresh failed. Error: " + error);
   } finally {
-    // executeBooking handles its own setIsLoading(false), 
-    // but we ensure it here as a fallback.
     setIsLoading(false);
   }
-};
+  console.log("=== handleTopUpSuccess END ===");
+}; 
+
   return (
     <>
       <div className="page animate-fade-up" style={{ maxWidth: 680, margin: '0 auto' }}>
@@ -4590,6 +4626,7 @@ export const Step7Success: React.FC<Step7SuccessProps> = ({ bookingResult, selec
 // src/pages/patient/components/ModernPaymentUI.tsx
 
 import { useState, useEffect, useRef } from 'react'
+import { walletService } from '../../../services/walletService'
 
 // ─────────────────────────────────────────────────────────
 // TYPES
@@ -4894,13 +4931,41 @@ export function ModernPaymentUI({ amount = 500, walletBalance = 0, onSuccess }: 
   const [, setRipple] = useState<RippleState | null>(null)
 
   const handlePay = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    setRipple({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-    setStep('confirming')
-    await new Promise(r => setTimeout(r, 2200))
-    setStep('success')
-    setTimeout(() => onSuccess?.(), 1500)
+  const rect = e.currentTarget.getBoundingClientRect()
+  setRipple({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+  setStep('confirming')
+  
+  try {
+    const patientId = localStorage.getItem('patientId') ?? localStorage.getItem('userId')
+    
+    if (!patientId) {
+      throw new Error('Patient ID not found')
+    }
+    
+    console.log('Calling wallet top-up API...', { patientId, amount })
+    
+    const result = await walletService.topUp({
+      userId: patientId,
+      amount: amount,
+      paymentMethod: 'UPI',
+      gatewayReference: `UPI-${upiId || 'web'}-${Date.now()}`
+    })
+    
+    console.log('Top-up result:', result)
+    
+    if (result && result.newBalance) {
+      setStep('success')
+      setTimeout(() => onSuccess?.(), 1500)
+    } else {
+      throw new Error('Invalid response from server')
+    }
+    
+  } catch (error) {
+    console.error('Top-up error:', error)
+    alert(`Top-up failed: ${error instanceof Error ? error.message : 'Please try again'}`)
+    setStep('input')
   }
+}
 
   const gpayApps: { name: string; color: string; emoji: string }[] = [
     { name: 'GPay',    color: '#4285F4', emoji: '🔵' },
@@ -8000,6 +8065,33 @@ export interface PaginatedResponse<T> {
 
 <file path="src/vite-env.d.ts">
 /// <reference types="vite/client" />
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
 </file>
 
 </files>
