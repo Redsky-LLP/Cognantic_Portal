@@ -1,0 +1,17 @@
+﻿services:
+  - type: web
+    name: cognantic-api
+    runtime: image
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: cognantic-db
+          property: connectionString
+    databases:
+      - name: cognantic-db
+        databaseName: cognantic_db
+        plan: free
