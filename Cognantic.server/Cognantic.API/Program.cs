@@ -53,7 +53,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 2. CORS — ✅ FIX: reads AllowedOrigins (plural) split by comma
+// 2. CORS
 var allowedOrigins = builder.Configuration["AllowedOrigins"]
     ?.Split(",", StringSplitOptions.RemoveEmptyEntries)
     ?? new[] { "http://localhost:5173", "https://localhost:5173" };
@@ -63,7 +63,6 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()));
-// ✅ NO AllowCredentials() — causes CORS error with wildcard
 
 // 3. Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -149,15 +148,16 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ✅ Swagger always on (not just dev) — needed for Render
+// ✅ Swagger always on — needed for Render
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Cognantic API v1");
-    c.RoutePrefix = "";  // Swagger at root /
+    c.RoutePrefix = "";
 });
 
-// ✅ REMOVED app.UseHttpsRedirection() — Render handles HTTPS
+// ✅ Correct middleware order
+app.UseRouting();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
