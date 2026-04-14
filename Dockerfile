@@ -5,7 +5,7 @@ WORKDIR /src
 COPY Cognantic.server/Cognantic.API/Cognantic.API.csproj Cognantic.server/Cognantic.API/
 COPY Cognantic.server/Cognantic.Application/Cognantic.Application.csproj Cognantic.server/Cognantic.Application/
 COPY Cognantic.server/Cognantic.Domain/Cognantic.Domain.csproj Cognantic.server/Cognantic.Domain/
-COPY Cognantic.server/Cognantic.Infrastucture/Cognantic.Infrastructure.csproj Cognantic.server/Cognantic.Infrastucture/
+COPY Cognantic.server/Cognantic.Infrastructure/Cognantic.Infrastructure.csproj Cognantic.server/Cognantic.Infrastructure/
 
 RUN dotnet restore Cognantic.server/Cognantic.API/Cognantic.API.csproj
 
