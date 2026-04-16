@@ -53,16 +53,21 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// 2. CORS
+// 2. CORS - Updated for Azure
 var allowedOrigins = builder.Configuration["AllowedOrigins"]
     ?.Split(",", StringSplitOptions.RemoveEmptyEntries)
-    ?? new[] { "http://localhost:5173", "https://localhost:5173" };
+    ?? new[] {
+        "http://localhost:5173",
+        "https://localhost:5173",
+        "https://cognantic-frontend.azurestaticapps.net"
+    };
 
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod()));
+              .AllowAnyMethod()
+              .AllowCredentials()));
 
 // 3. Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -148,7 +153,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ✅ Swagger always on — needed for Render
+// ✅ Swagger always on
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
