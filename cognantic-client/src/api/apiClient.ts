@@ -1,7 +1,7 @@
 // src/services/apiClient.ts
 
 // ✅ Azure deployment - uses environment variable
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://cognantic-api.azurecontainerapps.io/api/v1';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://cognantic-api.delightfuldesert-7407cfc7.southindia.azurecontainerapps.io/api/v1';
 
 let _token: string | null = localStorage.getItem('cognantic_token');
 
