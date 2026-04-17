@@ -481,7 +481,8 @@ export const Step5Payment: React.FC<{
       {/* Payment method */}
       <div className="card" style={{ padding: 28, marginBottom: 20 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--charcoal)', marginBottom: 16 }}>Payment Method</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+         {/* UPDATED: Responsive grid - auto-fit with minmax for mobile */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
           {OPTS.map(opt => (
             <button
               key={opt.id}

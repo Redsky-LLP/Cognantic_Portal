@@ -122,8 +122,8 @@ This section contains the contents of the repository's files.
 <file path="src/api/apiClient.ts">
 // src/services/apiClient.ts
 
-// 🛡️ Hardcoding it bypasses the .env file completely!
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'https://localhost:7208/api/v1';
+// ✅ Azure deployment - uses environment variable
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://cognantic-api.delightfuldesert-7407cfc7.southindia.azurecontainerapps.io/api/v1';
 
 let _token: string | null = localStorage.getItem('cognantic_token');
 

@@ -266,7 +266,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onFindNew }) => {
       />
 
       {/* Main grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1.5rem' }}>
         {/* Active Care Roadmap */}
         <div className="card card-dark" style={{ padding: 40, color: 'white' }}>
           <div style={{

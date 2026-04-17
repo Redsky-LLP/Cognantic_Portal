@@ -1,15 +1,17 @@
 // ─────────────────────────────────────────────────────────────────
-// src/App.tsx  ── FIXED
+// src/App.tsx  ── FIXED & MOBILE RESPONSIVE
 //
 // Bug fixes applied:
 //  1. resolveInitialView() now checks clinicianId/patientId for
 //     therapist/patient roles on page-reload (was routing everyone
 //     directly to their dashboard, bypassing onboarding checks).
 //  2. handleAuthSuccess() same fix — consistent with resolveInitialView.
+//  3. Added mobile responsive header using useIsMobile hook.
 // ─────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
+import MobileHeader from './components/MobileHeader'
 import AuthModal from './components/AuthModal'
 import HomePage from './pages/HomePage'
 import PatientPage from './pages/patient/PatientPage'
@@ -17,6 +19,7 @@ import PatientIntakeForm from './pages/PatientIntakeForm'
 import ClinicianOnboardingForm from './pages/ClinicianOnboardingForm'
 import TherapistPage from './pages/therapist/TherapistPage'
 import AdminPage from './pages/AdminPage'
+import { useIsMobile } from './hooks/useIsMobile'
 import './styles/global.css'
 
 export type ViewType =
@@ -75,6 +78,7 @@ const App: React.FC = () => {
   const [pendingRole, setPendingRole] = useState<AuthRole>('patient')
   const [isResetFlow, setIsResetFlow] = useState(false)
   const [resetEmail, setResetEmail]   = useState('')
+  const isMobile = useIsMobile()
 
   // Handle reset-password deep link: ?email=…
   useEffect(() => {
@@ -139,7 +143,11 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root">
-      <Header view={view} setView={setView} openAuth={openAuth} />
+      {isMobile ? (
+        <MobileHeader view={view} setView={setView} openAuth={openAuth} />
+      ) : (
+        <Header view={view} setView={setView} openAuth={openAuth} />
+      )}
       <main className="content-viewport" key={view}>
         {renderView()}
       </main>

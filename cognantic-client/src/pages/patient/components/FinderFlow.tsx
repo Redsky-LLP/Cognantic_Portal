@@ -361,7 +361,7 @@ const handleTopUpSuccess = async () => {
 
   return (
     <>
-      <div className="page animate-fade-up" style={{ maxWidth: 680, margin: '0 auto' }}>
+      <div className="page animate-fade-up" style={{ maxWidth: '100%', margin: '0 auto', padding: '1rem' }}>
         <StepBar step={step} />
 
         {step === 1 && (

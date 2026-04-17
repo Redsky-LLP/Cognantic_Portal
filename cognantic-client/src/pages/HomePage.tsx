@@ -24,8 +24,8 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
 
     {/* ── HERO ── */}
     <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 1fr',
-      gap: 80, alignItems: 'center', marginBottom: 100,
+      display: 'grid', gridTemplateColumns: '1fr',
+      gap: 40, alignItems: 'center', marginBottom: 60,
     }}>
       <div>
         {/* Live badge */}
@@ -45,7 +45,7 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
 
         <h1 style={{
           fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(52px, 6.5vw, 84px)',
+          fontSize: 'clamp(42px, 6.5vw, 84px)',
           lineHeight: 0.88, letterSpacing: '-0.01em',
           marginBottom: 28, color: 'var(--charcoal)',
         }}>
@@ -111,7 +111,7 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
     </div>
 
     {/* ── STATS ── */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginBottom: 64 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 64 }}>
       {STATS.map(s => (
         <div
           key={s.label}
@@ -143,7 +143,7 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
     </div>
 
     {/* ── FEATURES ── */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginBottom: 64 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 64 }}>
       {FEATURES.map(f => (
         <div key={f.title} className="card" style={{ padding: '32px 28px' }}>
           <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
