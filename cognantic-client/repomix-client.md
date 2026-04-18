@@ -49,12 +49,14 @@ src/components/AuthModal.tsx
 src/components/EmptyState.tsx
 src/components/Header.tsx
 src/components/LoadingSpinner.tsx
+src/components/MobileHeader.tsx
 src/components/SessionExtensionModal.tsx
 src/components/Toast.tsx
 src/context/AuthContext.tsx
 src/hooks/index.ts
 src/hooks/useApi.ts
 src/hooks/useAuth.ts
+src/hooks/useIsMobile.ts
 src/hooks/useSessionHub.ts
 src/main.tsx
 src/pages/AdminPage.tsx
@@ -208,17 +210,19 @@ export default apiClient;
 
 <file path="src/App.tsx">
 // ─────────────────────────────────────────────────────────────────
-// src/App.tsx  ── FIXED
+// src/App.tsx  ── FIXED & MOBILE RESPONSIVE
 //
 // Bug fixes applied:
 //  1. resolveInitialView() now checks clinicianId/patientId for
 //     therapist/patient roles on page-reload (was routing everyone
 //     directly to their dashboard, bypassing onboarding checks).
 //  2. handleAuthSuccess() same fix — consistent with resolveInitialView.
+//  3. Added mobile responsive header using useIsMobile hook.
 // ─────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect } from 'react'
 import Header from './components/Header'
+import MobileHeader from './components/MobileHeader'
 import AuthModal from './components/AuthModal'
 import HomePage from './pages/HomePage'
 import PatientPage from './pages/patient/PatientPage'
@@ -226,6 +230,7 @@ import PatientIntakeForm from './pages/PatientIntakeForm'
 import ClinicianOnboardingForm from './pages/ClinicianOnboardingForm'
 import TherapistPage from './pages/therapist/TherapistPage'
 import AdminPage from './pages/AdminPage'
+import { useIsMobile } from './hooks/useIsMobile'
 import './styles/global.css'
 
 export type ViewType =
@@ -284,6 +289,7 @@ const App: React.FC = () => {
   const [pendingRole, setPendingRole] = useState<AuthRole>('patient')
   const [isResetFlow, setIsResetFlow] = useState(false)
   const [resetEmail, setResetEmail]   = useState('')
+  const isMobile = useIsMobile()
 
   // Handle reset-password deep link: ?email=…
   useEffect(() => {
@@ -348,7 +354,11 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root">
-      <Header view={view} setView={setView} openAuth={openAuth} />
+      {isMobile ? (
+        <MobileHeader view={view} setView={setView} openAuth={openAuth} />
+      ) : (
+        <Header view={view} setView={setView} openAuth={openAuth} />
+      )}
       <main className="content-viewport" key={view}>
         {renderView()}
       </main>
@@ -1164,6 +1174,131 @@ const LoadingSpinner: React.FC<Props> = ({
 export default LoadingSpinner
 </file>
 
+<file path="src/components/MobileHeader.tsx">
+import React, { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+
+interface MobileHeaderProps {
+  view: string;
+  setView: (v: any) => void;
+  openAuth: (role: any) => void;
+}
+
+const MobileHeader: React.FC<MobileHeaderProps> = ({ view, setView, openAuth }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  return (
+    <>
+      <header className="glass-header" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        padding: '0.75rem 1rem',
+        height: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <button onClick={() => setView('home')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none' }}>
+          <div style={{ width: '32px', height: '32px', background: 'var(--forest)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
+              <circle cx="18" cy="7" r="5" fill="white" />
+              <rect x="2" y="12" width="24" height="3.5" rx="1.75" fill="white" />
+              <circle cx="12" cy="22" r="6" fill="white" />
+            </svg>
+          </div>
+          <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--charcoal)' }}>COGNANTIC</span>
+        </button>
+        <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: '8px' }}>
+          {isMenuOpen ? '✕' : '☰'}
+        </button>
+      </header>
+      {isMenuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '60px',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'white',
+          zIndex: 999,
+          padding: '1rem',
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {['home', 'patient-auth', 'therapist-auth'].map(item => (
+              <button key={item} onClick={() => {
+                if (item === 'patient-auth') openAuth('patient');
+                else if (item === 'therapist-auth') openAuth('therapist');
+                else setView(item);
+                setIsMenuOpen(false);
+              }} style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                background: view === item ? 'var(--forest)' : 'var(--n-50)',
+                color: view === item ? 'white' : 'var(--charcoal)',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}>
+                {item === 'home' ? '🏠 Home' : item === 'patient-auth' ? '👤 Patient' : '🩺 Clinician'}
+              </button>
+            ))}
+            {user && user.role === 'admin' && (
+              <button onClick={() => { setView('admin'); setIsMenuOpen(false); }} style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                background: view === 'admin' ? 'var(--forest)' : 'var(--n-50)',
+                color: view === 'admin' ? 'white' : 'var(--charcoal)',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}>👑 Admin</button>
+            )}
+            {user ? (
+              <button onClick={() => { logout(); setIsMenuOpen(false); }} style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                background: '#EF4444',
+                color: 'white',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+                marginTop: '1rem',
+              }}>🚪 Sign Out</button>
+            ) : (
+              <button onClick={() => { openAuth('patient'); setIsMenuOpen(false); }} style={{
+                padding: '1rem',
+                borderRadius: '12px',
+                background: 'var(--forest)',
+                color: 'white',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left',
+                marginTop: '1rem',
+              }}>🔐 Login / Sign Up</button>
+            )}
+          </nav>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default MobileHeader;
+</file>
+
 <file path="src/components/SessionExtensionModal.tsx">
 import React, { useState } from 'react'
 
@@ -1685,6 +1820,22 @@ export function useApi<T>(
 
 <file path="src/hooks/useAuth.ts">
 export { useAuthContext as useAuth } from '../context/AuthContext'
+</file>
+
+<file path="src/hooks/useIsMobile.ts">
+import { useState, useEffect } from 'react';
+
+export const useIsMobile = (breakpoint = 768) => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < breakpoint);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [breakpoint]);
+  
+  return isMobile;
+};
 </file>
 
 <file path="src/hooks/useSessionHub.ts">
@@ -2887,8 +3038,8 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
 
     {/* ── HERO ── */}
     <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 1fr',
-      gap: 80, alignItems: 'center', marginBottom: 100,
+      display: 'grid', gridTemplateColumns: '1fr',
+      gap: 40, alignItems: 'center', marginBottom: 60,
     }}>
       <div>
         {/* Live badge */}
@@ -2908,7 +3059,7 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
 
         <h1 style={{
           fontFamily: 'var(--font-display)',
-          fontSize: 'clamp(52px, 6.5vw, 84px)',
+          fontSize: 'clamp(42px, 6.5vw, 84px)',
           lineHeight: 0.88, letterSpacing: '-0.01em',
           marginBottom: 28, color: 'var(--charcoal)',
         }}>
@@ -2974,7 +3125,7 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
     </div>
 
     {/* ── STATS ── */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginBottom: 64 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 64 }}>
       {STATS.map(s => (
         <div
           key={s.label}
@@ -3006,7 +3157,7 @@ const HomePage: React.FC<Props> = ({ openAuth, setView }) => (
     </div>
 
     {/* ── FEATURES ── */}
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 20, marginBottom: 64 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 64 }}>
       {FEATURES.map(f => (
         <div key={f.title} className="card" style={{ padding: '32px 28px' }}>
           <div style={{ fontSize: 32, marginBottom: 16 }}>{f.icon}</div>
@@ -3326,7 +3477,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onFindNew }) => {
       />
 
       {/* Main grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1.5rem' }}>
         {/* Active Care Roadmap */}
         <div className="card card-dark" style={{ padding: 40, color: 'white' }}>
           <div style={{
@@ -3865,7 +4016,7 @@ const handleTopUpSuccess = async () => {
 
   return (
     <>
-      <div className="page animate-fade-up" style={{ maxWidth: 680, margin: '0 auto' }}>
+      <div className="page animate-fade-up" style={{ maxWidth: '100%', margin: '0 auto', padding: '1rem' }}>
         <StepBar step={step} />
 
         {step === 1 && (
@@ -4426,7 +4577,8 @@ export const Step5Payment: React.FC<{
       {/* Payment method */}
       <div className="card" style={{ padding: 28, marginBottom: 20 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--charcoal)', marginBottom: 16 }}>Payment Method</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+         {/* UPDATED: Responsive grid - auto-fit with minmax for mobile */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
           {OPTS.map(opt => (
             <button
               key={opt.id}
@@ -7895,6 +8047,122 @@ body {
 }
 .log-time { min-width: 148px; color: var(--n-400); }
 .log-type { min-width: 48px; font-weight: 800; }
+
+/* ───────────────────────────── MOBILE RESPONSIVE ENHANCEMENTS */
+:root {
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+}
+
+/* Responsive Container */
+.container-responsive {
+  width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+@media (min-width: 640px) { .container-responsive { max-width: 640px; } }
+@media (min-width: 768px) { .container-responsive { max-width: 768px; } }
+@media (min-width: 1024px) { .container-responsive { max-width: 1024px; } }
+@media (min-width: 1280px) { .container-responsive { max-width: 1280px; } }
+
+/* Responsive Grid */
+.grid-responsive {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) { .grid-responsive { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .grid-responsive { grid-template-columns: repeat(4, 1fr); } }
+
+/* Hide/Show Utilities */
+.hide-on-mobile { display: none; }
+.show-on-mobile { display: block; }
+@media (min-width: 768px) {
+  .hide-on-mobile { display: block; }
+  .show-on-mobile { display: none; }
+}
+
+/* Responsive Typography */
+@media (max-width: 768px) {
+  html { font-size: 14px; }
+  h1, .h1 { font-size: 2rem !important; }
+  h2, .h2 { font-size: 1.75rem !important; }
+  h3, .h3 { font-size: 1.5rem !important; }
+}
+
+/* Touch-Friendly Buttons */
+.btn-mobile, .btn-touch {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive Tables */
+.table-responsive {
+  overflow-x: auto;
+  display: block;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.table-responsive table { min-width: 600px; }
+
+/* Mobile Modal Adjustments */
+@media (max-width: 640px) {
+  .overlay { padding: 1rem; }
+  .overlay > div { padding: 2rem 1.5rem !important; max-width: 95% !important; }
+}
+
+/* Mobile Form Adjustments */
+@media (max-width: 640px) {
+  .input { padding: 12px 16px; font-size: 16px; }
+  .btn { padding: 12px 20px; white-space: normal; word-break: break-word; }
+  .btn-lg { padding: 14px 24px; }
+  .form-group { gap: 4px; }
+}
+
+/* Mobile Header Adjustments */
+@media (max-width: 768px) {
+  .glass-header { padding: 0 1rem !important; height: 60px !important; }
+  .content-viewport { padding-top: 60px; }
+}
+
+/* Mobile Page Padding */
+@media (max-width: 768px) {
+  .page { padding: 1rem; }
+  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+  .card { margin-bottom: 1rem; }
+}
+
+/* Mobile Tab Navigation */
+@media (max-width: 640px) {
+  .tab-nav { margin-bottom: 1.5rem; gap: 0.5rem; }
+  .tab-btn { padding: 0 0 0.75rem 0; margin-right: 1rem; font-size: 12px; }
+}
+
+/* Mobile Day Picker */
+@media (max-width: 640px) {
+  .day-pill { min-width: 60px; padding: 10px 6px; }
+  .day-pill span:last-child { font-size: 18px; }
+}
+
+/* Mobile Slot Buttons */
+@media (max-width: 640px) {
+  .slot-btn { padding: 12px 8px; font-size: 12px; }
+}
+
+/* Prevent text zoom on iOS */
+@media screen and (max-width: 768px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+/* Safe area insets for notches */
+@supports (padding: max(0px)) {
+  .glass-header { padding-top: env(safe-area-inset-top); }
+  .page { padding-bottom: max(60px, env(safe-area-inset-bottom)); }
+}
 </file>
 
 <file path="src/types/index.ts">

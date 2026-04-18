@@ -3,6 +3,7 @@ using Cognantic.API.Hubs;
 using Cognantic.API.Services;
 using Cognantic.Application.Common;
 using Cognantic.Infrastructure.Persistence;
+using Cognantic.Infrastructure.Database;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -69,18 +70,20 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowCredentials()));
 
-// 3. Database
+// 3. Database - Provider Agnostic
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "postgresql";
+var dbProvider = DatabaseConfiguration.GetProvider(databaseProvider);
 
-builder.Services.AddDbContextFactory<CognanticDbContext>(options =>
-    options.UseNpgsql(connectionString, npgsqlOptions =>
-    {
-        npgsqlOptions.CommandTimeout(120);
-        npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
-    }));
+builder.Services.AddDbContextFactory<CognanticDbContext>((serviceProvider, options) =>
+{
+    DatabaseConfiguration.ConfigureDatabase(options, connectionString!, dbProvider, builder.Configuration);
+});
 
 builder.Services.AddScoped<CognanticDbContext>(sp =>
     sp.GetRequiredService<IDbContextFactory<CognanticDbContext>>().CreateDbContext());
+
+builder.Services.AddSingleton<IDatabaseFactory, DatabaseFactory>();
 
 builder.Services.AddHostedService<MeetLinkDispatcher>();
 builder.Services.AddHttpClient<ZoomService>();

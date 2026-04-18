@@ -26,8 +26,7 @@ public class CognanticDbContext : DbContext
             entity.ToTable("Users");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
-            // ❌ REMOVED: entity.Property<uint>("xmin")...
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<Patient>(entity =>
@@ -37,8 +36,7 @@ public class CognanticDbContext : DbContext
             entity.Property(e => e.PatientId).HasColumnName("UserId").ValueGeneratedNever();
             entity.HasOne(p => p.User).WithOne().HasForeignKey<Patient>(p => p.PatientId);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
-            // ❌ REMOVED: entity.Property<uint>("xmin")...
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<Clinician>(entity =>
@@ -47,10 +45,9 @@ public class CognanticDbContext : DbContext
             entity.HasKey(e => e.ClinicianId);
             entity.Property(e => e.ClinicianId).HasColumnName("ClinicianId").ValueGeneratedNever();
             entity.HasOne(c => c.User).WithOne().HasForeignKey<Clinician>(c => c.ClinicianId);
-            entity.Property(e => e.HourlyRate).HasColumnType("numeric(18,2)");
+            entity.Property(e => e.HourlyRate).HasColumnType("decimal(18,2)");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
-            // ❌ REMOVED: entity.Property<uint>("xmin")...
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<Match>(entity =>
@@ -59,8 +56,7 @@ public class CognanticDbContext : DbContext
             entity.HasKey(e => e.MatchId);
             entity.HasOne(m => m.Patient).WithMany(p => p.Matches).HasForeignKey(m => m.PatientId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(m => m.Clinician).WithMany(c => c.Matches).HasForeignKey(m => m.ClinicianId).OnDelete(DeleteBehavior.Restrict);
-            entity.Property(e => e.MatchScore).HasColumnType("numeric(18,2)");
-            // ❌ REMOVED: entity.Property<uint>("xmin")...
+            entity.Property(e => e.MatchScore).HasColumnType("decimal(18,2)");
         });
 
         modelBuilder.Entity<Session>(entity =>
@@ -70,17 +66,16 @@ public class CognanticDbContext : DbContext
             entity.Property(e => e.SessionId).HasColumnName("SessionId");
             entity.HasOne(s => s.Patient).WithMany().HasForeignKey(s => s.PatientId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(s => s.Clinician).WithMany().HasForeignKey(s => s.ClinicianId).OnDelete(DeleteBehavior.Cascade);
-            entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.MeetLink).HasMaxLength(500).IsRequired(false);
             entity.Property(e => e.ConfirmationCode).HasMaxLength(100).IsRequired(false);
             entity.Property(e => e.ActualStartTime).IsRequired(false);
             entity.Property(e => e.ActualEndTime).IsRequired(false);
             entity.Property(e => e.OvertimeMinutes).HasDefaultValue(0);
-            entity.Property(e => e.OvertimeCharged).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+            entity.Property(e => e.OvertimeCharged).HasColumnType("decimal(18,2)").HasDefaultValue(0);
             entity.Property(e => e.LinkSentAt).IsRequired(false);
             entity.Property(e => e.ExtendedMinutes).HasDefaultValue(0);
             entity.Property(e => e.ScheduledEndTime).IsRequired();
-            // ❌ REMOVED: entity.Property<uint>("xmin")...
         });
 
         modelBuilder.Entity<Wallet>(entity =>
@@ -89,12 +84,11 @@ public class CognanticDbContext : DbContext
             entity.HasKey(e => e.WalletId);
             entity.HasOne(w => w.User).WithOne(u => u.Wallet).HasForeignKey<Wallet>(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => e.UserId).IsUnique();
-            entity.Property(e => e.Balance).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
-            entity.Property(e => e.EscrowBalance).HasColumnType("numeric(18,2)").HasDefaultValue(0m);
+            entity.Property(e => e.Balance).HasColumnType("decimal(18,2)").HasDefaultValue(0);
+            entity.Property(e => e.EscrowBalance).HasColumnType("decimal(18,2)").HasDefaultValue(0);
             entity.Property(e => e.OwnerType).HasMaxLength(20);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
-            // ❌ REMOVED: entity.Property<uint>("xmin")...
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<WalletTransaction>(entity =>
@@ -103,14 +97,14 @@ public class CognanticDbContext : DbContext
             entity.HasKey(e => e.TransactionId);
             entity.HasOne(t => t.Wallet).WithMany(w => w.Transactions).HasForeignKey(t => t.WalletId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(t => t.Session).WithMany().HasForeignKey(t => t.SessionId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
-            entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
-            entity.Property(e => e.BalanceAfter).HasColumnType("numeric(18,2)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.BalanceAfter).HasColumnType("decimal(18,2)");
             entity.Property(e => e.TransactionType).HasMaxLength(50);
             entity.Property(e => e.Direction).HasMaxLength(10);
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Completed");
             entity.Property(e => e.CreatedBy).HasMaxLength(100).HasDefaultValue("System");
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.WalletId);
             entity.HasIndex(e => e.SessionId);
             entity.HasIndex(e => e.CreatedTime);
@@ -121,14 +115,14 @@ public class CognanticDbContext : DbContext
             entity.ToTable("WithdrawalRequest");
             entity.HasKey(e => e.WithdrawalId);
             entity.HasOne(w => w.Clinician).WithMany().HasForeignKey(w => w.ClinicianId).OnDelete(DeleteBehavior.Cascade);
-            entity.Property(e => e.Amount).HasColumnType("numeric(18,2)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.PayoutMethod).HasMaxLength(30).HasDefaultValue("UPI");
             entity.Property(e => e.PayoutDetails).HasMaxLength(200);
             entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Pending");
             entity.Property(e => e.AdminNotes).HasMaxLength(500);
             entity.Property(e => e.ProcessedBy).HasMaxLength(100);
             entity.Property(e => e.GatewayReference).HasMaxLength(200);
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.ClinicianId);
         });
 
@@ -137,12 +131,12 @@ public class CognanticDbContext : DbContext
             entity.ToTable("SessionExtension");
             entity.HasKey(e => e.ExtensionId);
             entity.HasOne(e => e.Session).WithMany(s => s.Extensions).HasForeignKey(e => e.SessionId).OnDelete(DeleteBehavior.Cascade);
-            entity.Property(e => e.AmountCharged).HasColumnType("numeric(18,2)");
-            entity.Property(e => e.WalletContribution).HasColumnType("numeric(18,2)");
-            entity.Property(e => e.UpiContribution).HasColumnType("numeric(18,2)");
+            entity.Property(e => e.AmountCharged).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.WalletContribution).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.UpiContribution).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Status).HasMaxLength(30).HasDefaultValue("Requested");
             entity.Property(e => e.CreatedBy).HasMaxLength(100).HasDefaultValue("System");
-            entity.Property(e => e.CreatedTime).HasDefaultValueSql("NOW()");
+            entity.Property(e => e.CreatedTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 }
