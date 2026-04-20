@@ -40,7 +40,7 @@ builder.Services.AddAuthentication(options =>
                 ?? "CognanticSuperSecretKey2026_MustBe32CharsOrMore!"))
     };
 
-    // For SignalR
+    // for SignalR
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
