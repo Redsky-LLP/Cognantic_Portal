@@ -1,0 +1,39 @@
+﻿name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0
+
+      - name: Restore backend
+        run: dotnet restore Cognantic.server/Cognantic.API/Cognantic.API.csproj
+
+      - name: Build backend
+        run: dotnet build Cognantic.server/Cognantic.API/Cognantic.API.csproj --configuration Release --no-restore
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        run: |
+          cd cognantic-client
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd cognantic-client
+          npm run build
