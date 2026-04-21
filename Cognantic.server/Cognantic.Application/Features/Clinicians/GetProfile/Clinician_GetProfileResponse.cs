@@ -31,4 +31,9 @@ public class Clinician_GetProfileResponse
 
     public bool IsActive { get; set; }
     public DateTime CreatedTime { get; set; }
+
+    /// <summary>
+    /// Profile photo URL - stored in object storage (Azure Blob / local)
+    /// </summary>
+    public string? PhotoUrl { get; set; }
 }

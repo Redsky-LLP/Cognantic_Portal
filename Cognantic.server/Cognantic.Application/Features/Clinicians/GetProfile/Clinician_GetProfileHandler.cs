@@ -40,6 +40,7 @@ public class Clinician_GetProfileHandler
             RejectionReason = clinician.RejectionReason,
             IsActive = clinician.IsActive,
             CreatedTime = clinician.CreatedTime,
+            PhotoUrl = clinician.PhotoUrl,
         });
     }
 }

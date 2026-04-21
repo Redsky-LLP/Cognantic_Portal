@@ -15,9 +15,12 @@
 //  3. After submission, setView('therapist') navigates to the
 //     dashboard (which shows a "pending" banner). Previously it
 //     was calling setView incorrectly.
+//
+//  4. ADDED: Photo upload functionality - clinicians can upload a
+//     profile photo that will be displayed in patient finder cards.
 // ─────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { ViewType } from '../App'
 import { clinicianService } from '../services/clinicianService'
 
@@ -32,6 +35,8 @@ interface FormState {
   hourlyRate: string
   credential: string
   bio:        string
+  photoFile:  File | null
+  photoPreview: string
 }
 
 const SPECIALTIES = [
@@ -69,6 +74,7 @@ function getPersistedUser() {
 const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
   const { name: persistedName, email } = getPersistedUser()
   const userId = localStorage.getItem('userId') ?? ''
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep]           = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,6 +89,8 @@ const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
     hourlyRate: '',
     credential: '',
     bio:        '',
+    photoFile:  null,
+    photoPreview: '',
   })
 
   useEffect(() => {
@@ -101,6 +109,8 @@ const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
           hourlyRate: profile.hourlyRate != null ? String(profile.hourlyRate) : '',
           credential: profile.credential || '',
           bio:        profile.bio || '',
+          photoFile:  null,
+          photoPreview: (profile as any).photoUrl || '',
         })
       } catch (err) {
         console.error('Failed to pre-fill profile', err)
@@ -117,6 +127,80 @@ const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
         ? prev.languages.filter(l => l !== lang)
         : [...prev.languages, lang],
     }))
+
+  // ── Photo upload handlers ────────────────────────────────────────
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (JPEG, PNG, etc.)')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Photo must be less than 5MB')
+      return
+    }
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setForm(prev => ({
+        ...prev,
+        photoFile: file,
+        photoPreview: reader.result as string,
+      }))
+    }
+    reader.readAsDataURL(file)
+    setError(null)
+  }
+
+  const removePhoto = () => {
+    setForm(prev => ({
+      ...prev,
+      photoFile: null,
+      photoPreview: '',
+    }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // ── Upload photo to server ───────────────────────────────────────
+  const uploadPhoto = async (clinicianId: string): Promise<string | null> => {
+    if (!form.photoFile) return null
+
+    const uploadFormData = new FormData()
+    uploadFormData.append('file', form.photoFile)
+
+    const token = localStorage.getItem('cognantic_token')
+    const API_URL = import.meta.env.VITE_API_URL || 'https://cognantic-api.delightfuldesert-7407cfc7.southindia.azurecontainerapps.io/api/v1'
+
+    try {
+      const response = await fetch(`${API_URL}/Clinicians/${clinicianId}/photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Photo upload failed')
+      }
+
+      const data = await response.json()
+      return data.data?.photoUrl || null
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      // Non-fatal - continue without photo
+      return null
+    }
+  }
 
   const canProceedStep0 =
     form.fullName.trim().length > 0 &&
@@ -151,20 +235,19 @@ const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
       }) as any
 
       // ── FIX 1: Persist clinicianId ───────────────────────────
-      // The Clinician_PostHandler sets ClinicianId = user.Id (shared PK).
-      // We store it so App.tsx's handleAuthSuccess / resolveInitialView
-      // can detect an existing profile on every subsequent login/reload.
-      //
-      // apiClient already unwraps BackendResult<T>.data, so `response`
-      // IS the Clinician_PostResponse directly.
       const clinicianId =
         response?.clinicianId ??    // camelCase (JSON default)
         response?.ClinicianId ??    // PascalCase fallback
         userId                      // last resort: shared PK guarantee
 
       localStorage.setItem('clinicianId', String(clinicianId))
-      localStorage.setItem('cognantic_current_view', 'therapist')
 
+      // ── Upload photo if selected ────────────────────────────────
+      if (form.photoFile) {
+        await uploadPhoto(String(clinicianId))
+      }
+
+      localStorage.setItem('cognantic_current_view', 'therapist')
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed. Please try again.')
@@ -280,6 +363,63 @@ const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
           <p style={{ color: 'var(--n-400)', fontSize: 14, marginBottom: 40 }}>
             Help patients find the right match.
           </p>
+
+          {/* ── Photo Upload Section ── */}
+          <div style={{ marginBottom: 28 }}>
+            <label className="label">PROFILE PHOTO</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              {/* Photo preview */}
+              <div style={{
+                width: 100, height: 100, borderRadius: '50%',
+                background: 'var(--n-100)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                overflow: 'hidden',
+                border: '2px solid var(--n-200)',
+              }}>
+                {form.photoPreview ? (
+                  <img
+                    src={form.photoPreview}
+                    alt="Profile preview"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 36, color: 'var(--n-400)' }}>📷</span>
+                )}
+              </div>
+
+              {/* Upload buttons */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ padding: '10px 20px' }}
+                >
+                  {form.photoPreview ? 'Change Photo' : 'Upload Photo'}
+                </button>
+                {form.photoPreview && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={removePhoto}
+                    style={{ padding: '10px 20px', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                onChange={handlePhotoSelect}
+                style={{ display: 'none' }}
+              />
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--n-300)', marginTop: 8 }}>
+              Optional. JPEG, PNG up to 5MB. A professional photo helps build trust with patients.
+            </p>
+          </div>
 
           <div style={{ marginBottom: 28 }}>
             <label className="label">FULL NAME (AS ON LICENSE)</label>
@@ -442,6 +582,43 @@ const ClinicianOnboardingForm: React.FC<Props> = ({ setView }) => {
           </p>
 
           <div className="card" style={{ padding: '28px 32px', marginBottom: 28 }}>
+            {/* Photo preview in review */}
+            <div
+              style={{
+                display: 'grid', gridTemplateColumns: '140px 1fr',
+                gap: 12, padding: '12px 0',
+                borderBottom: '1px solid var(--n-100)',
+              }}
+            >
+              <span style={{
+                fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                letterSpacing: '0.1em', color: 'var(--n-400)', paddingTop: 2,
+              }}>
+                Profile Photo
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: '50%',
+                  background: 'var(--n-100)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden',
+                }}>
+                  {form.photoPreview ? (
+                    <img
+                      src={form.photoPreview}
+                      alt="Profile"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 20, color: 'var(--n-400)' }}>📷</span>
+                  )}
+                </div>
+                <span style={{ fontSize: 13, color: 'var(--n-500)' }}>
+                  {form.photoPreview ? 'Photo uploaded' : 'No photo uploaded'}
+                </span>
+              </div>
+            </div>
+
             {[
               { label: 'Full Name',   value: form.fullName },
               { label: 'Email',       value: email },
