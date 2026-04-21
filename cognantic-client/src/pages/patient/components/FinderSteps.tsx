@@ -5,6 +5,8 @@
 // clinician's real profile photo is shown when available. Falls back
 // to initials (unchanged behaviour) when photoUrl is null/undefined.
 //
+// ADDED: View Profile modal with full clinician details
+//
 // All other steps (1, 2, 4, 5, 7) are unchanged.
 // ─────────────────────────────────────────────────────────────────
 
@@ -23,6 +25,153 @@ import {
   fmtSlot,
   todayStr,
 } from './shared'
+
+// ═══════════════════════════════════════════════════════════════════
+// View Profile Modal Component
+// ═══════════════════════════════════════════════════════════════════
+
+interface ViewProfileModalProps {
+  clinician: MatchResult | null
+  onClose: () => void
+}
+
+const ViewProfileModal: React.FC<ViewProfileModalProps> = ({ clinician, onClose }) => {
+  if (!clinician) return null
+
+  const languagesList = clinician.languages?.split(',').map(l => l.trim()) || []
+
+  return (
+    <div
+      className="overlay"
+      onClick={e => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="animate-scale-in"
+        style={{
+          background: 'white',
+          borderRadius: 'var(--r-xl)',
+          width: '100%',
+          maxWidth: 520,
+          maxHeight: '85vh',
+          overflow: 'auto',
+          position: 'relative',
+          boxShadow: '0 40px 96px -20px rgba(28,28,30,0.28)',
+        }}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 20,
+            right: 24,
+            background: 'none',
+            border: 'none',
+            fontSize: 20,
+            color: 'var(--n-300)',
+            cursor: 'pointer',
+            zIndex: 10,
+          }}
+        >
+          ✕
+        </button>
+
+        {/* Header with avatar and name */}
+        <div style={{ textAlign: 'center', padding: '40px 32px 24px', borderBottom: '1px solid var(--n-100)' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+            <Avatar name={clinician.fullName} size={96} photoUrl={clinician.photoUrl} />
+          </div>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 28, color: 'var(--charcoal)', marginBottom: 4 }}>
+            {clinician.fullName}
+          </h3>
+          {clinician.credential && (
+            <p style={{ fontSize: 13, color: 'var(--n-500)', marginBottom: 8 }}>{clinician.credential}</p>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 8 }}>
+            <Stars />
+            <span style={{ fontSize: 13, color: 'var(--n-400)' }}>•</span>
+            <span style={{ fontSize: 13, color: 'var(--forest)', fontWeight: 600 }}>
+              ₹{clinician.hourlyRate.toLocaleString('en-IN')}/session
+            </span>
+          </div>
+        </div>
+
+        {/* Profile details */}
+        <div style={{ padding: '28px 32px' }}>
+          {/* Specialty */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--n-400)', marginBottom: 10 }}>
+              Specialty
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <Pill text={clinician.specialty} />
+            </div>
+          </div>
+
+          {/* Languages */}
+          {languagesList.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--n-400)', marginBottom: 10 }}>
+                Languages Spoken
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {languagesList.map(lang => (
+                  <Pill key={lang} text={lang} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bio */}
+          {clinician.bio && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--n-400)', marginBottom: 10 }}>
+                Professional Background
+              </div>
+              <p style={{ fontSize: 14, color: 'var(--n-600)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                {clinician.bio}
+              </p>
+            </div>
+          )}
+
+          {/* Qualifications */}
+          {clinician.credential && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--n-400)', marginBottom: 10 }}>
+                Qualifications
+              </div>
+              <p style={{ fontSize: 14, color: 'var(--n-600)', lineHeight: 1.7 }}>
+                {clinician.credential}
+              </p>
+            </div>
+          )}
+
+          {/* Therapeutic Approach */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--n-400)', marginBottom: 10 }}>
+              Therapeutic Approach
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--n-600)', lineHeight: 1.7 }}>
+              Integrative approach combining evidence-based therapies tailored to your unique needs.
+              Focuses on creating a safe, non-judgmental space for healing and growth.
+            </p>
+          </div>
+
+          {/* Close button at bottom */}
+          <button
+            className="btn btn-forest"
+            style={{ width: '100%', padding: '14px 0', marginTop: 8 }}
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // STEP 1 – Profile Preferences
@@ -145,123 +294,149 @@ interface Step3MatchesProps {
 }
 
 // ✅ FIX (Bug 5): pass photoUrl to Avatar so a real photo shows when available
+// ✅ ADDED: View Profile button and modal
 const ClinicianCard: React.FC<{
   c: MatchResult
   onSelect: (c: MatchResult) => void
 }> = ({ c, onSelect }) => {
   const [expanded, setExpanded] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
 
   return (
-    <div
-      className="card"
-      style={{
-        padding: '24px 28px',
-        transition: 'box-shadow 0.2s, transform 0.2s',
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 32px rgba(57,120,106,0.12)'
-        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = ''
-        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
-      }}
-    >
-      {/* ── Top row: avatar + info + match score ── */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-        {/* ✅ FIX: pass photoUrl so real photo renders when set */}
-        <Avatar name={c.fullName} size={64} photoUrl={c.photoUrl} />
+    <>
+      <div
+        className="card"
+        style={{
+          padding: '24px 28px',
+          transition: 'box-shadow 0.2s, transform 0.2s',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 32px rgba(57,120,106,0.12)'
+          ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLDivElement).style.boxShadow = ''
+          ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'
+        }}
+      >
+        {/* ── Top row: avatar + info + match score ── */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+          {/* ✅ FIX: pass photoUrl so real photo renders when set */}
+          <Avatar name={c.fullName} size={64} photoUrl={c.photoUrl} />
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Name + match score */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-            <h3 style={{
-              fontFamily: 'var(--font-display)', fontSize: 20,
-              color: 'var(--charcoal)', margin: 0,
-            }}>
-              {c.fullName}
-            </h3>
-            <div style={{ textAlign: 'right', flexShrink: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--forest)', lineHeight: 1 }}>
-                {Math.round(c.matchScore)}%
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Name + match score */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <h3 style={{
+                fontFamily: 'var(--font-display)', fontSize: 20,
+                color: 'var(--charcoal)', margin: 0,
+              }}>
+                {c.fullName}
+              </h3>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: 20, color: 'var(--forest)', lineHeight: 1 }}>
+                  {Math.round(c.matchScore)}%
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--n-400)', marginTop: 1 }}>match</div>
               </div>
-              <div style={{ fontSize: 10, color: 'var(--n-400)', marginTop: 1 }}>match</div>
+            </div>
+
+            {/* Credential + stars */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+              {c.credential && (
+                <span style={{ fontSize: 12, color: 'var(--n-500)', fontWeight: 500 }}>
+                  {c.credential}
+                </span>
+              )}
+              <Stars />
+            </div>
+
+            {/* Specialty + language pills */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              {c.specialty && <Pill text={c.specialty} />}
+              {c.languages && c.languages.split(',').map(l => (
+                <Pill key={l.trim()} text={l.trim()} />
+              ))}
             </div>
           </div>
+        </div>
 
-          {/* Credential + stars */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-            {c.credential && (
-              <span style={{ fontSize: 12, color: 'var(--n-500)', fontWeight: 500 }}>
-                {c.credential}
-              </span>
+        {/* ── Expandable bio ── */}
+        {c.bio && (
+          <div style={{ marginBottom: 14 }}>
+            {expanded ? (
+              <p style={{
+                fontSize: 13, color: 'var(--n-500)', lineHeight: 1.65,
+                background: 'var(--n-50)', borderRadius: 10,
+                padding: '12px 14px', margin: 0,
+              }}>
+                {c.bio}
+              </p>
+            ) : (
+              <p style={{
+                fontSize: 13, color: 'var(--n-400)', lineHeight: 1.5,
+                margin: 0,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}>
+                {c.bio}
+              </p>
             )}
-            <Stars />
+            <button
+              onClick={() => setExpanded(v => !v)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 12, color: 'var(--forest)', fontWeight: 600,
+                padding: '4px 0', marginTop: 4,
+              }}
+            >
+              {expanded ? '▲ Show less' : '▼ View bio'}
+            </button>
           </div>
+        )}
 
-          {/* Specialty + language pills */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-            {c.specialty && <Pill text={c.specialty} />}
-            {c.languages && c.languages.split(',').map(l => (
-              <Pill key={l.trim()} text={l.trim()} />
-            ))}
+        {/* ── Bottom row: rate + action buttons ── */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', paddingTop: 12,
+          borderTop: '1px solid var(--n-100)',
+          gap: 12,
+        }}>
+          <div>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--charcoal)' }}>
+              ₹{c.hourlyRate.toLocaleString('en-IN')}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--n-400)', marginLeft: 4 }}>/session</span>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {/* ✅ ADDED: View Profile button */}
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => setShowProfileModal(true)}
+              style={{
+                borderColor: 'var(--n-300)',
+                color: 'var(--n-600)',
+              }}
+            >
+              View Profile
+            </button>
+            <button className="btn btn-forest btn-sm" onClick={() => onSelect(c)}>
+              Book Session →
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ── Expandable bio ── */}
-      {c.bio && (
-        <div style={{ marginBottom: 14 }}>
-          {expanded ? (
-            <p style={{
-              fontSize: 13, color: 'var(--n-500)', lineHeight: 1.65,
-              background: 'var(--n-50)', borderRadius: 10,
-              padding: '12px 14px', margin: 0,
-            }}>
-              {c.bio}
-            </p>
-          ) : (
-            <p style={{
-              fontSize: 13, color: 'var(--n-400)', lineHeight: 1.5,
-              margin: 0,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}>
-              {c.bio}
-            </p>
-          )}
-          <button
-            onClick={() => setExpanded(v => !v)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 12, color: 'var(--forest)', fontWeight: 600,
-              padding: '4px 0', marginTop: 4,
-            }}
-          >
-            {expanded ? '▲ Show less' : '▼ View profile'}
-          </button>
-        </div>
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <ViewProfileModal
+          clinician={c}
+          onClose={() => setShowProfileModal(false)}
+        />
       )}
-
-      {/* ── Bottom row: rate + book button ── */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center', paddingTop: 12,
-        borderTop: '1px solid var(--n-100)',
-      }}>
-        <div>
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--charcoal)' }}>
-            ₹{c.hourlyRate.toLocaleString('en-IN')}
-          </span>
-          <span style={{ fontSize: 12, color: 'var(--n-400)', marginLeft: 4 }}>/session</span>
-        </div>
-        <button className="btn btn-forest btn-sm" onClick={() => onSelect(c)}>
-          Book Session →
-        </button>
-      </div>
-    </div>
+    </>
   )
 }
 
