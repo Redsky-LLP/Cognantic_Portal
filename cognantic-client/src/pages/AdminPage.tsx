@@ -8,9 +8,10 @@
 //  3. ManualOnboardTab now shows the temp password returned by the backend
 //     so the Admin can send it to the clinician (previously discarded).
 //  4. Added toast notifications in place of alert() calls.
+//  5. ADDED: Photo upload for manual onboarding - admin can upload clinician profile photo.
 // ─────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   adminService,
   type AdminStats,
@@ -235,17 +236,90 @@ const SPECIALTIES = [
 interface OnboardForm {
   fullName: string; email: string; specialty: string
   languages: string; credential: string; bio: string; hourlyRate: string
+  photoFile: File | null; photoPreview: string
 }
 
 const ManualOnboardTab: React.FC = () => {
-  const [form, setForm] = useState<OnboardForm>({ fullName: '', email: '', specialty: '', languages: '', credential: '', bio: '', hourlyRate: '' })
+  const [form, setForm] = useState<OnboardForm>({ 
+    fullName: '', email: '', specialty: '', languages: '', credential: '', bio: '', hourlyRate: '',
+    photoFile: null, photoPreview: ''
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
-  const [result,  setResult]  = useState<{ name: string; tempPassword: string } | null>(null)
+  const [result,  setResult]  = useState<{ name: string; tempPassword: string; clinicianId: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const set = (field: keyof OnboardForm) =>
+  const set = (field: keyof Omit<OnboardForm, 'photoFile' | 'photoPreview'>) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(p => ({ ...p, [field]: e.target.value }))
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file (JPEG, PNG, etc.)')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Photo must be less than 5MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setForm(prev => ({
+        ...prev,
+        photoFile: file,
+        photoPreview: reader.result as string,
+      }))
+    }
+    reader.readAsDataURL(file)
+    setError(null)
+  }
+
+  const removePhoto = () => {
+    setForm(prev => ({
+      ...prev,
+      photoFile: null,
+      photoPreview: '',
+    }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const uploadPhoto = async (clinicianId: string): Promise<string | null> => {
+    if (!form.photoFile) return null
+
+    const uploadFormData = new FormData()
+    uploadFormData.append('file', form.photoFile)
+
+    const token = localStorage.getItem('cognantic_token')
+    const API_URL = import.meta.env.VITE_API_URL || 'https://cognantic-api.delightfuldesert-7407cfc7.southindia.azurecontainerapps.io/api/v1'
+
+    try {
+      const response = await fetch(`${API_URL}/Clinicians/${clinicianId}/photo`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: uploadFormData,
+      })
+
+      if (!response.ok) {
+        console.error('Photo upload failed')
+        return null
+      }
+
+      const data = await response.json()
+      return data.data?.photoUrl || null
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      return null
+    }
+  }
 
   const canSubmit = form.fullName.trim() && form.email.trim() && form.specialty && form.credential.trim() && Number(form.hourlyRate) > 0
 
@@ -258,8 +332,14 @@ const ManualOnboardTab: React.FC = () => {
         credential: form.credential.trim(), bio: form.bio.trim(),
         hourlyRate: Number(form.hourlyRate),
       })
-      setResult({ name: form.fullName, tempPassword: res.tempPassword ?? '(check server logs)' })
-      setForm({ fullName: '', email: '', specialty: '', languages: '', credential: '', bio: '', hourlyRate: '' })
+      
+      // Upload photo if selected
+      if (form.photoFile && res.clinicianId) {
+        await uploadPhoto(res.clinicianId)
+      }
+      
+      setResult({ name: form.fullName, tempPassword: res.tempPassword ?? '(check server logs)', clinicianId: res.clinicianId })
+      setForm({ fullName: '', email: '', specialty: '', languages: '', credential: '', bio: '', hourlyRate: '', photoFile: null, photoPreview: '' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Manual onboarding failed.')
     } finally {
@@ -282,7 +362,7 @@ const ManualOnboardTab: React.FC = () => {
         </span>
       </div>
 
-      {/* ✅ NEW: Show temp password after onboard so admin can share it */}
+      {/* Show temp password after onboard */}
       {result && (
         <div style={{ background: 'rgba(52,122,86,0.08)', border: '1px solid rgba(52,122,86,0.3)', borderRadius: 12, padding: '18px 22px', marginBottom: 24 }}>
           <p style={{ fontWeight: 700, color: 'var(--forest)', marginBottom: 10 }}>✓ {result.name} onboarded successfully.</p>
@@ -301,6 +381,38 @@ const ManualOnboardTab: React.FC = () => {
       )}
 
       <div className="card" style={{ padding: '32px 36px' }}>
+        {/* Photo Upload Section */}
+        <div style={{ marginBottom: 24 }}>
+          <label className="label">PROFILE PHOTO</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: '50%',
+              background: 'var(--n-100)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden',
+              border: '2px solid var(--n-200)',
+            }}>
+              {form.photoPreview ? (
+                <img src={form.photoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: 32, color: 'var(--n-400)' }}>📷</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => fileInputRef.current?.click()}>
+                {form.photoPreview ? 'Change Photo' : 'Upload Photo'}
+              </button>
+              {form.photoPreview && (
+                <button type="button" className="btn btn-outline btn-sm" onClick={removePhoto} style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                  Remove
+                </button>
+              )}
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/jpg,image/webp" onChange={handlePhotoSelect} style={{ display: 'none' }} />
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--n-300)', marginTop: 8 }}>Optional. JPEG, PNG up to 5MB.</p>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
           <div><label className="label">FULL NAME *</label><input className="input" placeholder="Dr. Rishad Kalathil" value={form.fullName} onChange={set('fullName')} /></div>
           <div><label className="label">EMAIL *</label><input className="input" type="email" placeholder="doctor@hospital.in" value={form.email} onChange={set('email')} /></div>
@@ -342,8 +454,6 @@ const ManualOnboardTab: React.FC = () => {
 }
 
 // ── Withdrawals Tab  ────────────────────────────────────────────────
-// FIX: was calling setIsLoading(false) without ever fetching data.
-// Now calls adminService.getWithdrawalRequests() properly.
 const WithdrawalsTab: React.FC = () => {
   const [requests, setRequests]   = useState<WithdrawalRequestItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -357,7 +467,6 @@ const WithdrawalsTab: React.FC = () => {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // ✅ FIX: actually call the API
   const fetchWithdrawals = async (status = statusFilter) => {
     setIsLoading(true); setError(null)
     try {
@@ -402,7 +511,6 @@ const WithdrawalsTab: React.FC = () => {
             Review and process clinician withdrawal requests.
           </p>
         </div>
-        {/* Status filter */}
         <div style={{ display: 'flex', gap: 8 }}>
           {(['Pending', 'Approved', 'Rejected'] as const).map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} style={{
